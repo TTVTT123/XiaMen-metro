@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>厦门地铁站点信息查询与便利度分析系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft Yahei", sans-serif;
+        }
+
+        body {
+            background: #f5f7fa;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 40px;
+        }
+
+        .search-box {
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px #eee;
+            margin-bottom: 20px;
+        }
+
+        #searchInput {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        .main-wrap {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+        }
+
+        .site-list {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px #eee;
+            padding: 15px;
+            height: 600px;
+            overflow-y: auto;
+        }
+
+        .site-item {
+            padding: 10px 12px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        .site-item:hover,
+        .site-item.active {
+            background: #3498db;
+            color: #fff;
+        }
+
+        .info-panel {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px #eee;
+            padding: 20px;
+        }
+
+        .site-title {
+            font-size: 22px;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .score-box {
+            display: flex;
+            gap: 15px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .score-item {
+            flex: 1;
+            min-width: 120px;
+            text-align: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .score-item div:first-child {
+            font-size: 16px;
+        }
+
+        .score-num {
+            font-size: 24px;
+            color: #e67e22;
+            font-weight: bold;
+        }
+
+        .tab-box {
+            margin-top: 20px;
+        }
+
+        .tab-nav {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            overflow-x: auto;
+            /* 横向滚动 */
+            white-space: nowrap;
+            /* 文字不换行 */
+        }
+
+        .tab-nav span {
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .tab-nav span.active {
+            color: #3498db;
+            border-bottom: 2px solid #3498db;
+        }
+
+        .tab-content {
+            padding: 15px;
+        }
+
+        .tab-item {
+            display: none;
+        }
+
+        .tab-item.show {
+            display: block;
+        }
+
+        .poi-list li {
+            list-style: none;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 16px;
+        }
+
+        .level-star {
+            color: #f39c12;
+            font-size: 22px;
+        }
+
+        /* 手机端：只在小屏幕生效，不污染电脑 */
+        @media (max-width: 768px) {
+
+            /* 全局字体缩小，适应手机屏幕 */
+            * {
+                font-size: 13px !important;
+            }
+
+            /* 1. 左右两栏 → 上下单栏布局，解决挤压错乱 */
+            .main-wrap {
+                grid-template-columns: 1fr;
+            }
+
+            /* 2. 缩短站点列表高度，手机不占满屏幕 */
+            .site-list {
+                height: 280px;
+            }
+
+            /* 3. 缩小内容内边距，充分利用手机屏幕 */
+            .info-panel {
+                padding: 15px;
+            }
+
+            /* 4. 标题字体缩小 */
+            h1 {
+                font-size: 26px;
+            }
+
+            /* 5. 标签栏自适应，字体调小 */
+            .tab-nav span {
+                padding: 8px 12px;
+                font-size: 16px;
+            }
+
+            /* 6. 图片强制自适应 */
+            img {
+                max-width: 100%;
+                height: auto;
+            }
+
+            /* 7.线路按钮变小 */
+            button {
+                padding: 8px 14px !important;
+                font-size: 14px !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>厦门地铁站点信息查询与便利度分析系统</h1>
+        <div style="margin-bottom:20px; text-align:center;">
+            <img src="xiamen-map.jpg" style="width:100%; border-radius:8px;">
+        </div>
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="请输入地铁站点名称搜索...">
+        </div>
+        <div style="display: flex; justify-content: center; gap: 10px; margin: 0 0 20px 0; flex-wrap:wrap;">
+            <button id="btn1" onclick="showLine('1号线');setActive(1)"
+                style="padding:14px 116px; background:#df5c04; color:white; border:none; border-radius:12px; font-size:20px; cursor:pointer; font-weight:bold; transition:all 0.2s; box-shadow:0 4px 0 #ad4800;">1号线</button>
+            <button id="btn2" onclick="showLine('2号线');setActive(2)"
+                style="padding:14px 116px; background:#2ba503; color:white; border:none; border-radius:12px; font-size:20px; cursor:pointer; font-weight:bold; transition:all 0.2s; box-shadow:0 4px 0 #028034d3;">2号线</button>
+            <button id="btn3" onclick="showLine('3号线');setActive(3)"
+                style="padding:14px 116px; background:#0874e1bd; color:white; border:none; border-radius:12px; font-size:20px; cursor:pointer; font-weight:bold; transition:all 0.2s; box-shadow:0 4px 0 #0759abc0;">3号线</button>
+            <button id="btnAll" onclick="showAll();setActive(0)"
+                style="padding:14px 116px; background:#000000ab; color:white; border:none; border-radius:12px; font-size:20px; cursor:pointer; font-weight:bold; transition:all 0.2s; box-shadow:0 4px 0 #000000;">全部站点</button>
+        </div>
+        <div class="main-wrap">
+            <div class="site-list" id="siteList"></div>
+            <div class="info-panel">
+                <div class="site-title" id="siteName">请选择地铁站点</div>
+                <div class="level-star" id="levelStar">便利度评级：★★★★★</div>
+                <div class="score-box">
+                    <div class="score-item">
+                        <div>住宿便利度</div>
+                        <div class="score-num" id="score1">85</div>
+                    </div>
+                    <div class="score-item">
+                        <div>餐饮便利度</div>
+                        <div class="score-num" id="score2">90</div>
+                    </div>
+                    <div class="score-item">
+                        <div>购物便利度</div>
+                        <div class="score-num" id="score3">88</div>
+                    </div>
+                    <div class="score-item">
+                        <div>景点便利度</div>
+                        <div class="score-num" id="score4">75</div>
+                    </div>
+                    <div class="score-item">
+                        <div>公交接驳</div>
+                        <div class="score-num" id="score5">92</div>
+                    </div>
+                </div>
+                <div class="tab-box">
+                    <div class="tab-nav">
+                        <span class="active" data-tab="tab1">住宿</span>
+                        <span data-tab="tab2">餐饮</span>
+                        <span data-tab="tab3">购物</span>
+                        <span data-tab="tab4">景点</span>
+                        <span data-tab="tab5">公交</span>
+                    </div>
+                    <div class="tab-content">
+                        <div class="tab-item show" id="tab1">
+                            <ul class="poi-list" id="poi1"></ul>
+                        </div>
+                        <div class="tab-item" id="tab2">
+                            <ul class="poi-list" id="poi2"></ul>
+                        </div>
+                        <div class="tab-item" id="tab3">
+                            <ul class="poi-list" id="poi3"></ul>
+                        </div>
+                        <div class="tab-item" id="tab4">
+                            <ul class="poi-list" id="poi4"></ul>
+                        </div>
+                        <div class="tab-item" id="tab5">
+                            <ul class="poi-list" id="poi5"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const metroData = [
+            // 1号线 已开通站点
+            {
+                name: "岩内",
+                line: "1号线",
+                star: "★★☆☆☆",
+                score: [62, 65, 63, 60, 70],
+                hotel: ["安漫智选", "厦门木棠清居", "九度山山庄"],
+                food: ["尊宝披萨", "三津汤包", "铁焰江湖湘菜馆"],
+                shop: ["万科广场"],
+                scenic: ["岩内带状公园"],
+                bus: ["334路"]
+            },
+            {
+                name: "厦门北站",
+                line: "1号线",
+                star: "★★★★☆",
+                score: [88, 85, 80, 65, 95],
+                hotel: ["厦雅栖酒店公寓", "落叶草公寓", "厦门小时光度假酒店"],
+                food: ["小鱼号酸菜鱼", "周黑鸭", "麦当劳"],
+                shop: ["万科广场"],
+                scenic: ["老院子景区", "圣果院"],
+                bus: ["690路", "334路", "M20路", "395路", "691路"]
+            },
+            {
+                name: "天水路",
+                line: "1号线",
+                star: "★★★☆☆",
+                score: [70, 73, 71, 68, 76],
+                hotel: ["北站和福客栈", "布书精选酒店"],
+                food: ["豪亨来", "沙县小吃"],
+                shop: ["尚柏奥莱"],
+                scenic: ["东宅社区公园"],
+                bus: ["M20路", "905路", "909路", "917路"]
+            },
+            {
+                name: "集美大道",
+                line: "1号线",
+                star: "★★★☆☆",
+                score: [72, 78, 75, 85, 80],
+                hotel: ["荣华盛居酒店", "原宿"],
+                food: ["沙县小吃"],
+                shop: [],
+                scenic: [],
+                bus: ["910路", "M43路"]
+            },
+            {
+                name: "集美软件园",
+                line: "1号线",
+                star: "★★★☆☆",
+                score: [74, 77, 75, 72, 80],
+                hotel: ["寓亨住"],
+                food: ["潮牛悦.鲜牛肉无限量自助火锅", "尊宝披萨", "喜姐炸串", "张亮麻辣烫"],
+                shop: ["邻几便利店", "罗森"],
+                scenic: [],
+                bus: ["软件园三期站", "诚毅北大街"]
+            },
+            {
+                name: "诚毅广场",
+                line: "1号线",
+                star: "★★★☆☆",
+                score: [72, 75, 73, 70, 78],
+                hotel: [],
+                food: ["南洋料理", "三米粥铺", "潮汕原味汤粉王", "御上牛肉"],
+                shop: ["美宜佳", "理想家便利店"],
+                scenic: [],
+                bus: ["莲花新城站"]
+            },
+            {
+                name: "官任",
+                line: "1号线",
+                star: "★★★☆☆",
+                score: [73, 76, 74, 71, 79],
+                hotel: ["精品酒店", "景观公寓"],
+                food: ["正餐酒楼", "特色简餐"],
+                shop: ["大悦城", "万科里"],
+                scenic: ["市民公园", "集美图书馆"],
+                bus: ["902路", "913路", "928路"]
+            },
+            {
+                name: "杏锦路",
+                line: "1号线",
+                star: "★★★☆☆",
+                score: [72, 75, 73, 70, 78],
+                hotel: ["公寓酒店", "快捷住宿"],
+                food: ["融合美食", "川味火锅"],
+                shop: ["IOI MALL", "万达广场"],
+                scenic: ["灵玲马戏城", "集美新城"],
+                bus: ["906路", "914路", "919路"]
+            },
+            {
+                name: "杏林村",
+                line: "1号线",
+                star: "★★★☆☆",
+                score: [72, 75, 70, 68, 78],
+                hotel: ["本地民宿", "小区公寓"],
+                food: ["闽南小炒", "海鲜排档"],
+                shop: ["沿街商铺", "菜市场"],
+                scenic: ["杏林古村", "园博苑周边"],
+                bus: ["906路", "914路", "925路"]
+            },
+            {
+                name: "园博苑",
+                line: "1号线",
+                star: "★★★★☆",
+                score: [78, 80, 76, 90, 82],
+                hotel: ["温泉酒店", "湖景民宿"],
+                food: ["观景餐食", "闽南风味"],
+                shop: ["主题商街", "文创小店"],
+                scenic: ["园博苑景区", "月光环", "集美湖"],
+                bus: ["900路", "904路", "907路"]
+            },
+            {
+                name: "集美学村",
+                line: "1号线",
+                star: "★★★★★",
+                score: [82, 86, 80, 96, 86],
+                hotel: ["观景民宿", "青年旅舍"],
+                food: ["古早小吃", "特色小炒"],
+                shop: ["特产店", "生活超市"],
+                scenic: ["嘉庚建筑群", "鳌园", "龙舟池"],
+                bus: ["901路", "903路", "921路"]
+            },
+            {
+                name: "高崎",
+                line: "1号线",
+                star: "★★☆☆☆",
+                score: [65, 68, 65, 60, 75],
+                hotel: ["快捷酒店", "小型民宿"],
+                food: ["家常面食", "简餐小吃"],
+                shop: ["社区超市", "日用小店"],
+                scenic: ["高崎码头", "滨海滩涂"],
+                bus: ["953路", "943路", "655路"]
+            },
+            {
+                name: "殿前",
+                line: "1号线",
+                star: "★★★☆☆",
+                score: [75, 78, 72, 68, 82],
+                hotel: ["商务酒店", "社区民宿"],
+                food: ["海鲜简餐", "传统卤味"],
+                shop: ["综合市场", "连锁便利店"],
+                scenic: ["殿前古街", "妈祖庙"],
+                bus: ["27路", "755路", "840路"]
+            },
+            {
+                name: "火炬园",
+                line: "1号线",
+                star: "★★★☆☆",
+                score: [75, 78, 74, 68, 80],
+                hotel: ["园区酒店", "周边公寓"],
+                food: ["职场简餐", "本地小吃"],
+                shop: ["沿街商街", "便民超市"],
+                scenic: ["湖里公园", "塘边老街"],
+                bus: ["11路", "15路", "49路"]
+            },
+            {
+                name: "塘边",
+                line: "1号线",
+                star: "★★★☆☆",
+                score: [75, 78, 74, 68, 80],
+                hotel: ["小区公寓", "连锁酒店"],
+                food: ["街头小吃", "海鲜排档"],
+                shop: ["综合商铺", "便民菜场"],
+                scenic: ["塘边老街", "仙岳山"],
+                bus: ["11路", "15路", "49路"]
+            },
+            {
+                name: "乌石浦",
+                line: "1号线",
+                star: "★★★☆☆",
+                score: [78, 81, 79, 74, 85],
+                hotel: ["商务酒店", "艺术民宿"],
+                food: ["闽南小吃", "烧烤火锅"],
+                shop: ["油画街商铺", "综合商场"],
+                scenic: ["乌石浦油画村", "仙岳山公园"],
+                bus: ["20路", "34路", "82路"]
+            },
+            {
+                name: "吕厝",
+                line: "1号线",
+                star: "★★★★☆",
+                score: [85, 88, 90, 72, 90],
+                hotel: ["高端酒店", "精品公寓"],
+                food: ["美食街区", "各地菜系"],
+                shop: ["天虹商场", "SM广场"],
+                scenic: ["莲花公园", "江头公园"],
+                bus: ["BRT快1线", "10路", "45路"]
+            },
+            {
+                name: "莲花路口",
+                line: "1号线",
+                star: "★★★★☆",
+                score: [85, 88, 90, 76, 90],
+                hotel: ["星级酒店", "商务住宿"],
+                food: ["美食城", "火锅烧烤"],
+                shop: ["磐基中心", "明发广场"],
+                scenic: ["莲花公园", "忠仑公园"],
+                bus: ["10路", "30路", "BRT快2线"]
+            },
+            {
+                name: "莲坂",
+                line: "1号线",
+                star: "★★★★☆",
+                score: [86, 89, 91, 78, 91],
+                hotel: ["商圈酒店", "精品公寓"],
+                food: ["特色小吃", "川湘闽菜"],
+                shop: ["明发广场", "大型超市"],
+                scenic: ["忠仑公园", "商圈广场"],
+                bus: ["6路", "7路", "BRT快1线"]
+            },
+            {
+                name: "湖滨东路",
+                line: "1号线",
+                star: "★★★★☆",
+                score: [84, 86, 87, 80, 89],
+                hotel: ["高端酒店", "湖景公寓"],
+                food: ["私房菜", "咖啡简餐"],
+                shop: ["万象城", "品牌商铺"],
+                scenic: ["筼筜湖", "狐尾山公园"],
+                bus: ["8路", "25路", "842路"]
+            },
+            {
+                name: "文灶",
+                line: "1号线",
+                star: "★★★☆☆",
+                score: [78, 80, 76, 72, 82],
+                hotel: ["老牌宾馆", "连锁酒店"],
+                food: ["闽南小炒", "烧烤小吃"],
+                shop: ["综合商圈", "生活超市"],
+                scenic: ["金榜公园", "铁路文化公园"],
+                bus: ["16路", "26路", "BRT快1线"]
+            },
+            {
+                name: "将军祠",
+                line: "1号线",
+                star: "★★★☆☆",
+                score: [76, 78, 74, 70, 80],
+                hotel: ["经济型宾馆", "老城民宿"],
+                food: ["老牌面馆", "家常简餐"],
+                shop: ["社区超市", "生鲜摊点"],
+                scenic: ["植物园西门", "文曾路怪坡"],
+                bus: ["17路", "52路", "139路"]
+            },
+            {
+                name: "中山公园",
+                line: "1号线",
+                star: "★★★☆☆",
+                score: [80, 82, 78, 85, 86],
+                hotel: ["古厝民宿", "快捷酒店"],
+                food: ["卤味小吃", "传统面点"],
+                shop: ["步行街", "特产商铺"],
+                scenic: ["中山公园", "百家村老别墅"],
+                bus: ["3路", "21路", "19路"]
+            },
+            {
+                name: "镇海路",
+                line: "1号线",
+                star: "★★★★☆",
+                score: [86, 90, 89, 82, 91],
+                hotel: ["海景酒店", "精品民宿"],
+                food: ["海鲜酒楼", "古早小吃"],
+                shop: ["中华城", "八市市场"],
+                scenic: ["鼓浪屿码头", "南普陀寺", "沙坡尾"],
+                bus: ["45路", "48路", "135路"]
+            },
+
+            // 2号线 绿色 天竺山 → 五缘湾
+            {
+                name: "天竺山",
+                line: "2号线",
+                star: "★★☆☆☆",
+                score: [60, 65, 62, 55, 70],
+                hotel: ["山间民宿", "木屋住宿"],
+                food: ["山野农家菜", "简餐小吃"],
+                shop: ["文创店", "土特产铺"],
+                scenic: ["天竺山森林公园", "四季花海"],
+                bus: ["805路", "822路", "837路"]
+            },
+            {
+                name: "东孚",
+                line: "2号线",
+                star: "★★☆☆☆",
+                score: [61, 64, 62, 58, 71],
+                hotel: ["乡镇民宿", "快捷酒店"],
+                food: ["农家风味", "特色卤味"],
+                shop: ["沿街商街", "菜市场"],
+                scenic: ["香草园", "日月谷温泉"],
+                bus: ["805路", "835路", "840路"]
+            },
+            {
+                name: "东瑶",
+                line: "2号线",
+                star: "★★☆☆☆",
+                score: [62, 65, 63, 60, 72],
+                hotel: ["乡村民宿", "通勤公寓"],
+                food: ["家常小吃", "近海海鲜"],
+                shop: ["便民超市", "日用百货"],
+                scenic: ["马銮湾湿地公园", "东瑶古厝"],
+                bus: ["836路", "839路", "958路"]
+            },
+            {
+                name: "新阳大道",
+                line: "2号线",
+                star: "★★★☆☆",
+                score: [70, 73, 71, 68, 78],
+                hotel: ["片区公寓", "商务酒店"],
+                food: ["闽南菜", "火锅烧烤"],
+                shop: ["沿街商铺", "综合广场"],
+                scenic: ["马銮湾新城", "新阳公园"],
+                bus: ["807路", "834路", "838路"]
+            },
+            {
+                name: "新垵",
+                line: "2号线",
+                star: "★★★☆☆",
+                score: [71, 74, 72, 69, 79],
+                hotel: ["本地民宿", "居家公寓"],
+                food: ["街头小吃", "海鲜排档"],
+                shop: ["综合超市", "日用商铺"],
+                scenic: ["古民居", "霞阳公园"],
+                bus: ["830路", "836路", "854路"]
+            },
+            {
+                name: "翁角路",
+                line: "2号线",
+                star: "★★★☆☆",
+                score: [72, 75, 73, 70, 80],
+                hotel: ["商务酒店", "园区公寓"],
+                food: ["闽南小炒", "快餐简餐"],
+                shop: ["沿街商铺", "连锁超市"],
+                scenic: ["马銮湾公园", "文体中心"],
+                bus: ["807路", "838路", "958路"]
+            },
+            {
+                name: "马青路",
+                line: "2号线",
+                star: "★★★☆☆",
+                score: [73, 76, 74, 71, 81],
+                hotel: ["片区公寓", "休闲民宿"],
+                food: ["海鲜排档", "闽南菜"],
+                shop: ["沿街商街", "便民超市"],
+                scenic: ["青礁慈济宫", "龟山公园"],
+                bus: ["801路", "805路", "831路"]
+            },
+            {
+                name: "海沧行政中心",
+                line: "2号线",
+                star: "★★★☆☆",
+                score: [75, 78, 80, 68, 82],
+                hotel: ["商务酒店", "景观公寓"],
+                food: ["正餐酒楼", "火锅日料"],
+                shop: ["阿罗海广场", "天虹商场"],
+                scenic: ["海沧湖公园", "文化艺术中心"],
+                bus: ["806路", "842路", "881路"]
+            },
+            {
+                name: "海沧商务中心",
+                line: "2号线",
+                star: "★★★☆☆",
+                score: [76, 79, 77, 82, 83],
+                hotel: ["海景公寓", "度假酒店"],
+                food: ["滨海餐食", "闽南本帮菜"],
+                shop: ["滨湖商街", "生活超市"],
+                scenic: ["海沧湾景观", "滨海步道"],
+                bus: ["806路", "825路", "853路"]
+            },
+            {
+                name: "海沧湾公园",
+                line: "2号线",
+                star: "★★★☆☆",
+                score: [76, 79, 77, 82, 83],
+                hotel: ["海景民宿", "度假酒店"],
+                food: ["海景餐食", "闽南本帮菜"],
+                shop: ["滨湖商街", "生活超市"],
+                scenic: ["海沧湾公园", "鼓浪屿观景台"],
+                bus: ["806路", "825路", "853路"]
+            },
+            {
+                name: "邮轮中心",
+                line: "2号线",
+                star: "★★★★☆",
+                score: [82, 85, 84, 78, 88],
+                hotel: ["星级酒店", "码头民宿"],
+                food: ["海鲜料理", "咖啡甜品"],
+                shop: ["海上世界", "免税商店"],
+                scenic: ["海湾公园", "邮轮码头"],
+                bus: ["84路", "107路", "841路"]
+            },
+            {
+                name: "建业路",
+                line: "2号线",
+                star: "★★★☆☆",
+                score: [77, 80, 78, 73, 84],
+                hotel: ["商务酒店", "城市公寓"],
+                food: ["闽南菜", "咖啡简餐"],
+                shop: ["沿街商街", "连锁超市"],
+                scenic: ["筼筜湖", "狐尾山公园"],
+                bus: ["8路", "25路", "31路"]
+            },
+            {
+                name: "湖滨中路",
+                line: "2号线",
+                star: "★★★☆☆",
+                score: [77, 80, 78, 74, 84],
+                hotel: ["商务酒店", "湖景公寓"],
+                food: ["融合菜系", "特色小吃"],
+                shop: ["沿街商铺", "生活超市"],
+                scenic: ["筼筜湖核心区", "休闲步道"],
+                bus: ["8路", "25路", "31路"]
+            },
+            {
+                name: "体育中心",
+                line: "2号线",
+                star: "★★★☆☆",
+                score: [80, 83, 81, 76, 87],
+                hotel: ["配套酒店", "商务公寓"],
+                food: ["烧烤简餐", "闽南菜系"],
+                shop: ["运动商铺", "连锁超市"],
+                scenic: ["体育场馆", "南湖公园"],
+                bus: ["31路", "86路", "88路"]
+            },
+            {
+                name: "育秀东路",
+                line: "2号线",
+                star: "★★★☆☆",
+                score: [80, 83, 81, 76, 87],
+                hotel: ["商务酒店", "小区民宿"],
+                food: ["快餐简餐", "咖啡甜品"],
+                shop: ["综合商圈", "便利店"],
+                scenic: ["体育中心", "仙岳山绿地"],
+                bus: ["36路", "40路", "81路"]
+            },
+            {
+                name: "吕厝",
+                line: "2号线",
+                star: "★★★★☆",
+                score: [85, 88, 90, 72, 90],
+                hotel: ["高端酒店", "精品公寓"],
+                food: ["美食街区", "各地菜系"],
+                shop: ["天虹商场", "SM广场"],
+                scenic: ["莲花公园", "江头公园"],
+                bus: ["BRT快1线", "10路", "45路"]
+            },
+            {
+                name: "江头",
+                line: "2号线",
+                star: "★★★☆☆",
+                score: [79, 82, 80, 75, 86],
+                hotel: ["片区公寓", "快捷酒店"],
+                food: ["特色小吃", "火锅小炒"],
+                shop: ["建材市场", "大型商超"],
+                scenic: ["江头公园", "莲花公园"],
+                bus: ["10路", "34路", "45路"]
+            },
+            {
+                name: "后埔",
+                line: "2号线",
+                star: "★★★☆☆",
+                score: [78, 81, 79, 74, 85],
+                hotel: ["小区公寓", "平价酒店"],
+                food: ["街头小吃", "家常简餐"],
+                shop: ["沿街商街", "便民菜场"],
+                scenic: ["忠仑公园", "湖边水库"],
+                bus: ["39路", "68路", "94路"]
+            },
+            {
+                name: "蔡塘",
+                line: "2号线",
+                star: "★★★☆☆",
+                score: [77, 80, 78, 73, 84],
+                hotel: ["社区民宿", "商务住宿"],
+                food: ["综合美食", "网红小吃"],
+                shop: ["蔡塘广场", "东百商城"],
+                scenic: ["忠仑公园", "石文化园"],
+                bus: ["38路", "68路", "94路"]
+            },
+            {
+                name: "古地石",
+                line: "2号线",
+                star: "★★★☆☆",
+                score: [78, 81, 79, 74, 85],
+                hotel: ["文创公寓", "文艺民宿"],
+                food: ["创意餐食", "咖啡简餐"],
+                shop: ["文创小店", "潮牌门店"],
+                scenic: ["艺术区", "湖边公园"],
+                bus: ["40路", "52路", "91路"]
+            },
+            {
+                name: "岭兜",
+                line: "2号线",
+                star: "★★★☆☆",
+                score: [79, 82, 80, 75, 86],
+                hotel: ["园区公寓", "商务酒店"],
+                food: ["职场简餐", "茶饮小吃"],
+                shop: ["沿街商铺", "便利店"],
+                scenic: ["岭兜公园", "环岛路景观"],
+                bus: ["55路", "92路", "98路"]
+            },
+            {
+                name: "软件园二期",
+                line: "2号线",
+                star: "★★★☆☆",
+                score: [80, 83, 81, 76, 87],
+                hotel: ["人才公寓", "园区酒店"],
+                food: ["快餐简餐", "茶饮甜品"],
+                shop: ["园区商街", "便利店"],
+                scenic: ["环岛路海滩", "观音山"],
+                bus: ["28路", "91路", "92路"]
+            },
+            {
+                name: "何厝",
+                line: "2号线",
+                star: "★★★☆☆",
+                score: [78, 81, 79, 74, 85],
+                hotel: ["本地民宿", "小区公寓"],
+                food: ["闽南小吃", "海鲜排档"],
+                shop: ["沿街商铺", "便民菜场"],
+                scenic: ["何厝古厝", "滨海景观"],
+                bus: ["55路", "68路", "94路"]
+            },
+            {
+                name: "观音山",
+                line: "2号线",
+                star: "★★★☆☆",
+                score: [76, 80, 78, 72, 85],
+                hotel: ["海景公寓", "度假酒店"],
+                food: ["海鲜排档", "滨海简餐"],
+                shop: ["滨海商街", "文创小店"],
+                scenic: ["观音山海滩", "环岛路景观"],
+                bus: ["55路", "68路", "91路"]
+            },
+            {
+                name: "东宅",
+                line: "2号线",
+                star: "★★★☆☆",
+                score: [74, 77, 73, 67, 79],
+                hotel: ["乡村民宿", "快捷酒店"],
+                food: ["本地小吃", "海鲜排档"],
+                shop: ["便民超市", "果蔬店"],
+                scenic: ["社区公园", "环岛路海滩"],
+                bus: ["55路", "68路", "91路"]
+            },
+            {
+                name: "两岸金融中心",
+                line: "2号线",
+                star: "★★★★☆",
+                score: [82, 85, 86, 78, 88],
+                hotel: ["高端酒店", "江景公寓"],
+                food: ["商务正餐", "融合美食"],
+                shop: ["配套商圈", "品牌商超"],
+                scenic: ["五缘湾远景", "城市绿地"],
+                bus: ["68路", "94路", "55路"]
+            },
+            {
+                name: "五通",
+                line: "2号线",
+                star: "★★★☆☆",
+                score: [77, 80, 79, 74, 84],
+                hotel: ["海景民宿", "码头酒店"],
+                food: ["近海海鲜", "闽南家常菜"],
+                shop: ["沿街商铺", "生鲜市场"],
+                scenic: ["五通码头", "滨海步道"],
+                bus: ["68路", "94路", "102路"]
+            },
+            {
+                name: "湿地公园",
+                line: "2号线",
+                star: "★★★★☆",
+                score: [79, 82, 80, 88, 86],
+                hotel: ["景观民宿", "生态酒店"],
+                food: ["观景简餐", "闽南风味"],
+                shop: ["园区商铺", "文创小店"],
+                scenic: ["五缘湾湿地公园", "水上迷宫"],
+                bus: ["68路", "94路", "48路"]
+            },
+            {
+                name: "钟宅",
+                line: "2号线",
+                star: "★★★☆☆",
+                score: [78, 81, 79, 75, 85],
+                hotel: ["古厝民宿", "小区公寓"],
+                food: ["传统小吃", "家常小炒"],
+                shop: ["商业街", "综合超市"],
+                scenic: ["钟宅畲族古村", "五缘湾沿岸"],
+                bus: ["68路", "94路", "48路"]
+            },
+            {
+                name: "五缘湾",
+                line: "2号线",
+                star: "★★★★☆",
+                score: [82, 85, 83, 88, 86],
+                hotel: ["高端酒店", "湖景民宿"],
+                food: ["海鲜大餐", "日式料理"],
+                shop: ["湾悦城", "天虹商场"],
+                scenic: ["湿地公园", "游艇码头"],
+                bus: ["48路", "68路", "94路"]
+            },
+
+            // 3号线 蓝色 厦门火车站 → 蔡厝
+            {
+                name: "厦门火车站",
+                line: "3号线",
+                star: "★★★★☆",
+                score: [85, 88, 84, 70, 92],
+                hotel: ["连锁酒店", "青年旅社"],
+                food: ["美食城", "特色小吃"],
+                shop: ["罗宾森广场", "中闽百汇"],
+                scenic: ["金榜公园", "铁路文化公园"],
+                bus: ["1路", "3路", "26路"]
+            },
+            {
+                name: "湖滨东路",
+                line: "3号线",
+                star: "★★★★☆",
+                score: [84, 86, 87, 80, 89],
+                hotel: ["高端酒店", "湖景公寓"],
+                food: ["私房菜", "西式简餐"],
+                shop: ["万象城", "品牌门店"],
+                scenic: ["筼筜湖", "狐尾山公园"],
+                bus: ["8路", "25路", "842路"]
+            },
+            {
+                name: "体育中心",
+                line: "3号线",
+                star: "★★★☆☆",
+                score: [80, 83, 81, 76, 87],
+                hotel: ["配套酒店", "商务公寓"],
+                food: ["烧烤", "闽南菜"],
+                shop: ["运动用品店", "超市"],
+                scenic: ["体育中心", "南湖公园"],
+                bus: ["31路", "86路", "88路"]
+            },
+            {
+                name: "人才中心",
+                line: "3号线",
+                star: "★★★☆☆",
+                score: [78, 81, 79, 74, 85],
+                hotel: ["人才公寓", "连锁酒店"],
+                food: ["闽南小炒", "特色面馆"],
+                shop: ["沿街商铺", "便利店"],
+                scenic: ["筼筜湖沿岸", "林荫步道"],
+                bus: ["16路", "26路", "80路"]
+            },
+            {
+                name: "湖里公园",
+                line: "3号线",
+                star: "★★★☆☆",
+                score: [79, 82, 80, 75, 86],
+                hotel: ["老牌宾馆", "居家公寓"],
+                food: ["街头小吃", "海鲜排档"],
+                shop: ["沿街商铺", "便民菜场"],
+                scenic: ["湖里公园", "仙岳山"],
+                bus: ["11路", "15路", "49路"]
+            },
+            {
+                name: "华荣路",
+                line: "3号线",
+                star: "★★★☆☆",
+                score: [74, 77, 73, 67, 79],
+                hotel: ["小区公寓", "平价酒店"],
+                food: ["家常小炒", "传统面馆"],
+                shop: ["沿街商铺", "日用百货"],
+                scenic: ["湖里公园外围", "海天公园"],
+                bus: ["16路", "26路", "80路"]
+            },
+            {
+                name: "火炬园",
+                line: "3号线",
+                star: "★★★☆☆",
+                score: [75, 78, 74, 68, 80],
+                hotel: ["园区酒店", "周边公寓"],
+                food: ["职场简餐", "本地小吃"],
+                shop: ["沿街商街", "便民超市"],
+                scenic: ["湖里公园", "塘边老街"],
+                bus: ["11路", "15路", "49路"]
+            },
+            {
+                name: "小东山",
+                line: "3号线",
+                star: "★★★☆☆",
+                score: [74, 77, 74, 69, 81],
+                hotel: ["片区公寓", "社区民宿"],
+                food: ["家常小炒", "街头小吃"],
+                shop: ["沿街商铺", "果蔬生鲜店"],
+                scenic: ["山体绿地", "休闲公园"],
+                bus: ["39路", "68路", "94路"]
+            },
+            {
+                name: "安兜",
+                line: "3号线",
+                star: "★★★☆☆",
+                score: [73, 76, 73, 68, 80],
+                hotel: ["乡村民宿", "小区公寓"],
+                food: ["农家小炒", "传统卤味"],
+                shop: ["商业街", "日用杂货铺"],
+                scenic: ["安兜古村落", "近郊绿地"],
+                bus: ["39路", "68路", "94路"]
+            },
+            {
+                name: "坂尚",
+                line: "3号线",
+                star: "★★★☆☆",
+                score: [73, 75, 72, 67, 79],
+                hotel: ["小区民宿", "长租公寓"],
+                food: ["家常简餐", "特色面馆"],
+                shop: ["社区超市", "便民小店"],
+                scenic: ["城市绿地", "休闲广场"],
+                bus: ["39路", "68路", "94路"]
+            },
+            {
+                name: "湖里创新园",
+                line: "3号线",
+                star: "★★★☆☆",
+                score: [74, 76, 73, 68, 80],
+                hotel: ["园区公寓", "快捷酒店"],
+                food: ["快餐简餐", "风味小吃"],
+                shop: ["园区商铺", "连锁超市"],
+                scenic: ["产业园区景观", "城市步道"],
+                bus: ["39路", "68路", "94路"]
+            },
+            {
+                name: "五缘湾",
+                line: "3号线",
+                star: "★★★★☆",
+                score: [82, 85, 83, 88, 86],
+                hotel: ["度假酒店", "海景公寓"],
+                food: ["海鲜料理", "咖啡甜品"],
+                shop: ["湾悦城", "乐购超市"],
+                scenic: ["湿地公园", "帆船基地"],
+                bus: ["48路", "68路", "94路"]
+            },
+            {
+                name: "国际博览中心",
+                line: "3号线",
+                star: "★★★★☆",
+                score: [83, 86, 85, 89, 87],
+                hotel: ["商务酒店", "海景公寓"],
+                food: ["海鲜餐厅", "闽南菜"],
+                shop: ["奥特莱斯", "文创小店"],
+                scenic: ["会展场馆", "环岛路海滩"],
+                bus: ["28路", "55路", "91路"]
+            },
+            {
+                name: "东界",
+                line: "3号线",
+                star: "★★★☆☆",
+                score: [74, 77, 73, 67, 79],
+                hotel: ["乡村民宿", "快捷酒店"],
+                food: ["本地小吃", "海鲜排档"],
+                shop: ["便民超市", "果蔬店"],
+                scenic: ["郊野绿地", "滨海风光"],
+                bus: ["55路", "68路", "91路"]
+            },
+            {
+                name: "洪坑",
+                line: "3号线",
+                star: "★★★☆☆",
+                score: [73, 76, 72, 66, 78],
+                hotel: ["农家住宿", "平价旅社"],
+                food: ["家常简餐", "乡土小吃"],
+                shop: ["社区小店", "生鲜摊点"],
+                scenic: ["乡村田园", "滨水绿地"],
+                bus: ["55路", "68路", "91路"]
+            },
+            {
+                name: "林前",
+                line: "3号线",
+                star: "★★★☆☆",
+                score: [75, 78, 74, 68, 80],
+                hotel: ["小区公寓", "休闲民宿"],
+                food: ["家常简餐", "特色海鲜"],
+                shop: ["社区超市", "小型商场"],
+                scenic: ["湿地公园", "古厝群"],
+                bus: ["48路", "68路", "94路"]
+            },
+            {
+                name: "鼓锣",
+                line: "3号线",
+                star: "★★★☆☆",
+                score: [73, 76, 72, 66, 78],
+                hotel: ["乡村民宿", "小型旅社"],
+                food: ["闽南小吃", "家常小炒"],
+                shop: ["便民超市", "日用小店"],
+                scenic: ["乡村景观", "休闲绿地"],
+                bus: ["55路", "68路", "91路"]
+            },
+            {
+                name: "翔安市民公园",
+                line: "3号线",
+                star: "★★★☆☆",
+                score: [74, 77, 73, 67, 79],
+                hotel: ["周边公寓", "快捷酒店"],
+                food: ["简餐小吃", "本地风味"],
+                shop: ["沿街商铺", "便利店"],
+                scenic: ["市民公园", "城市广场"],
+                bus: ["55路", "68路", "91路"]
+            },
+            {
+                name: "浦边",
+                line: "3号线",
+                star: "★★★☆☆",
+                score: [72, 75, 71, 65, 77],
+                hotel: ["乡村民宿", "平价住宿"],
+                food: ["家常面食", "乡土简餐"],
+                shop: ["村级超市", "杂货小店"],
+                scenic: ["郊野风光", "滨水步道"],
+                bus: ["55路", "68路", "91路"]
+            },
+            {
+                name: "后村",
+                line: "3号线",
+                star: "★★★☆☆",
+                score: [72, 75, 71, 65, 77],
+                hotel: ["村民民宿", "小型旅社"],
+                food: ["农家菜", "传统小吃"],
+                shop: ["便民小店", "生鲜摊位"],
+                scenic: ["村落风光", "乡村公园"],
+                bus: ["55路", "68路", "91路"]
+            },
+            {
+                name: "蔡厝",
+                line: "3号线",
+                star: "★★☆☆☆",
+                score: [70, 73, 69, 63, 75],
+                hotel: ["乡村民宿", "经济型旅社"],
+                food: ["农家简餐", "本地小吃"],
+                shop: ["便民超市", "日用杂货"],
+                scenic: ["乡村田园", "郊野绿地"],
+                bus: ["55路", "68路", "91路"]
+            }
+        ]
+
+        const siteList = document.getElementById('siteList');
+        function renderList(data) {
+            siteList.innerHTML = '';
+            data.forEach((item, idx) => {
+                let div = document.createElement('div');
+                div.className = 'site-item';
+                div.innerText = item.name;
+                div.onclick = () => selectSite(idx, data);
+                siteList.appendChild(div);
+            });
+        }
+        renderList(metroData);
+
+        function selectSite(index, data = metroData) {
+            let d = data[index];
+            document.getElementById('siteName').innerText = d.name;
+            document.getElementById('levelStar').innerText = "便利度评级：" + d.star;
+            document.getElementById('score1').innerText = d.score[0];
+            document.getElementById('score2').innerText = d.score[1];
+            document.getElementById('score3').innerText = d.score[2];
+            document.getElementById('score4').innerText = d.score[3];
+            document.getElementById('score5').innerText = d.score[4];
+
+            fillPoi('poi1', d.hotel, d);
+            fillPoi('poi2', d.food, d);
+            fillPoi('poi3', d.shop, d);
+            fillPoi('poi4', d.scenic, d);
+            fillPoi('poi5', d.bus, d);
+
+            document.querySelectorAll('.site-item').forEach((el, i) => {
+                el.classList.toggle('active', i === index);
+            });
+        }
+
+        function fillPoi(id, arr, station) {
+            let ul = document.getElementById(id);
+            ul.innerHTML = '';
+            arr.forEach(item => {
+                let li = document.createElement('li');
+                li.innerText = "• " + item;
+                li.style.color = "#0066cc";
+                li.style.cursor = "pointer";
+
+                // 点击跳转导航：起点=当前地铁站，终点=设施名
+                li.onclick = function () {
+                    let url = "https://amap.com/search?keywords="
+                        + encodeURIComponent(station.name + " 到 " + item);
+                    window.open(url, '_blank');
+                };
+                ul.appendChild(li);
+            });
+        }
+
+        document.querySelectorAll('.tab-nav span').forEach(item => {
+            item.onclick = function () {
+                let tabId = this.dataset.tab;
+                document.querySelectorAll('.tab-nav span').forEach(s => s.classList.remove('active'));
+                document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('show'));
+                this.classList.add('active');
+                document.getElementById(tabId).classList.add('show');
+            }
+        });
+
+        document.getElementById('searchInput').addEventListener('input', function () {
+            let key = this.value.trim();
+            let filter = metroData.filter(item => item.name.includes(key));
+            renderList(filter);
+        });
+
+        // 线路筛选功能
+        function showLine(lineName) {
+            let filterData = metroData.filter(item => item.line === lineName);
+            renderList(filterData);
+            if (filterData.length > 0) {
+                selectSite(0, filterData);
+            }
+        }
+
+        // 显示全部站点
+        function showAll() {
+            renderList(metroData);
+            selectSite(0);
+        }
+
+        selectSite(0);
+        function setActive(num) {
+            let btn1 = document.getElementById('btn1');
+            let btn2 = document.getElementById('btn2');
+            let btn3 = document.getElementById('btn3');
+            let btnAll = document.getElementById('btnAll');
+
+            // 重置所有按钮
+            [btn1, btn2, btn3, btnAll].forEach(b => {
+                b.style.transform = "translateY(0)";
+                b.style.boxShadow = "";
+                b.style.filter = "brightness(1)";
+            });
+
+            // 选中对应按钮
+            if (num === 1) {
+                btn1.style.transform = "translateY(3px)";
+                btn1.style.boxShadow = "0 1px 0 #666";
+                btn1.style.filter = "brightness(0.85)";
+            } else if (num === 2) {
+                btn2.style.transform = "translateY(3px)";
+                btn2.style.boxShadow = "0 1px 0 #666";
+                btn2.style.filter = "brightness(0.85)";
+            } else if (num === 3) {
+                btn3.style.transform = "translateY(3px)";
+                btn3.style.boxShadow = "0 1px 0 #666";
+                btn3.style.filter = "brightness(0.85)";
+            } else if (num === 0) {
+                btnAll.style.transform = "translateY(3px)";
+                btnAll.style.boxShadow = "0 1px 0 #666";
+                btnAll.style.filter = "brightness(0.85)";
+            }
+        }
+    </script>
+</body>
+
+</html>
